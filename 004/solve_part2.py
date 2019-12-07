@@ -37,17 +37,18 @@ for password in range(start, end):
 		dup_counts[curr] = dup_counts[curr] + 1
 		last = curr
 
-	# verify  dups
+	# verify even match dups
 	dup_check = False
-	## TODO
-
+	for count in dup_counts:
+		if (int(count) == 1): dup_check = True
 	if (not dup_check): is_valid = False
+
 	if (not is_valid): continue
 
 	# Checks out
 	passwords.append(password)		
 
-print(passwords)
+#print(passwords)
 print(f'len: {len(passwords)}')
 print("\ndone.");
 
