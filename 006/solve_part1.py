@@ -7,27 +7,23 @@ if len(sys.argv) != 2:
 	print("usage: solve.py input.txt")
 	exit(1)
 
+graph = {}
+start_node = "COM"
 
+def count_paths(node, count, depth, visited):
+	#print(f'{node}: count: {count} depth: {depth} visited: {visited}')
 
-def count_paths(node, count, depth):
-	#print(f'{node}: count: {count} depth: {depth}')
-
-	children = graph[node]
-
-	# leaf
-	if not children: return count
-
+	# Mark node as seen this path
+	visited.append(node)
+	
 	# process childen
-	for child_node in children:
-		depth = depth+1
-		count = depth + count_paths(child_node, count, depth)
-		depth = depth-1
+	for child_node in graph[node]:
+		if (child_node in visited): continue
+		count = (depth+1) + count_paths(child_node, count, (depth+1), visited)
 	
 	return count
 
 # Build Graph
-graph = {}
-edges = []
 with open(sys.argv[1]) as f:
 	data = f.read()
 	lines = data.splitlines()
@@ -35,19 +31,19 @@ with open(sys.argv[1]) as f:
 	for line in lines:		
 		nodes = line.split(")")
 
+		# Init
 		if not (nodes[0] in graph): graph[nodes[0]] = []
 		if not (nodes[1] in graph): graph[nodes[1]] = []
 
-		# Add Nodes to Graph
+		# Add Nodes to Graph (bi-directional)
 		graph[nodes[0]].append(nodes[1])
+		graph[nodes[1]].append(nodes[0])
 
-		# Create Edges
-		edges.append([nodes[0], nodes[1]])
 
 # Traverse the nodes
-paths_count = count_paths('COM', 0, 0)
+paths_count = count_paths(start_node, 0, 0, [])
 
-
+#print(graph)
 print(f'Answer: {paths_count}')
 #print(graph)
 print("\ndone.");
