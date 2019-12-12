@@ -1,139 +1,178 @@
 #!/usr/bin/env python3
 
+
 import sys
 from enum import IntEnum
 import copy 
 
-class Opcodes(IntEnum):
-	ADD = 1,
-	MULTIPLY = 2,
-	COPY = 3,
-	PRINT = 4,
-	JMP_IF_TRUE = 5,
-	JMP_IF_FALSE = 6,
-	LESS_THAN = 7,
-	EQALS = 8,
-	ENDPROGRAM = 99
 
-class units(IntEnum):
-	AC = 1,
-	THERML_RADI_CTLER = 5
-
-class modes(IntEnum):
-	POSITION = 0,
-	IMMEDIATE = 1
-
-def processMemory(memory, input_val):
-	output_val = False
+class IntCode:
 	
-	i_ptr = 0
-	while (i_ptr < len(memory)):
+	def __init__(self, memory, input_val=None, output_val=None):
+		self.i_ptr = 0
+
+		self.memory = memory
+		self.input = input_val
+		self.output = output_val
+
+		self.program_mappings = {
+			self.OPCODES.ADD: self.add,
+			self.OPCODES.MULTIPLY: self.multiply,
+			self.OPCODES.COPY: self.copy,
+			self.OPCODES.PRINT: self.print,
+			self.OPCODES.JMP_IF_TRUE: self.jmp_if_true,
+			self.OPCODES.JMP_IF_FALSE: self.jmp_if_false,
+			self.OPCODES.LESS_THAN: self.less_than,
+			self.OPCODES.EQUALS: self.equals,
+			self.OPCODES.ENDPROGRAM: self.end_program,
+		}
+
+	class OPCODES(IntEnum):
+		ADD = 1,
+		MULTIPLY = 2,
+		COPY = 3,
+		PRINT = 4,
+		JMP_IF_TRUE = 5,
+		JMP_IF_FALSE = 6,
+		LESS_THAN = 7,
+		EQUALS = 8,
+		ENDPROGRAM = 99
+
+	class UNITS(IntEnum):
+		AC = 1,
+		THERML_RADI_CTLER = 5
+
+	class MODES(IntEnum):
+		POSITION = 0,
+		IMMEDIATE = 1
+
+	def get_instruction(self, i_ptr):
+
 		instruction = str(memory[i_ptr]).rjust(5, '0')
 		op_code = int(instruction[-2:])
-	
-		#print(f'instruction: {instruction} op_code: {op_code} i_ptr: {i_ptr} input_val: {input_val}')
-		
-		# Halt on request
-		if (op_code == Opcodes.ENDPROGRAM): break
-
 		modeA = int(instruction[2:3])
 		modeB = int(instruction[1:2])
 		modeC = int(instruction[0:1])
-		posA = int(memory[i_ptr+1])
-		
-		posB = False
-		posC = False
-	
-		if ((i_ptr+2) < len(memory)):
-			posB = int(memory[i_ptr+2])		
-		if ((i_ptr+3) < len(memory)):
-			posC = int(memory[i_ptr+3])	
+		#print(memory)
+		#print(f'instruction: {instruction} opcode: {op_code} modeA: {modeA} modeB: {modeB} modeC: {modeC} ')
+		return [op_code, modeA, modeB, modeC]
 
-		#print(f'posA: {posA} posB: {posB} posC: {posC}')
-		#print(f'modeA: {modeA} modeB: {modeB} modeC: {modeC}')
-		#print(f'memA: {memory[posA]} memB: {int(memory[posB])}')
-
-		if (modeA == modes.POSITION):
-			valA = memory[posA]
+	def get_value(self, i_ptr, mode):		
+		if (mode):
+			return self.memory[i_ptr]
 		else: 
-			valA = posA
+			return self.memory[int(self.memory[i_ptr])]
+	
+	def process(self):
 
-		if (op_code != Opcodes.COPY and op_code != Opcodes.PRINT):			
-			if (modeB == modes.POSITION):
-				valB = memory[posB]
-			else: 
-				valB = posB
-		if (
-				op_code != Opcodes.COPY
-				and op_code != Opcodes.PRINT 
-				and op_code != Opcodes.JMP_IF_FALSE 
-				and op_code != Opcodes.JMP_IF_TRUE and op_code != Opcodes.LESS_THAN
-		):	
-			if (modeC == modes.POSITION):
-				valC = memory[posC]
-			else: 
-				valC = posC
+		while(self.i_ptr < len(memory)):
+			instruction = prog.get_instruction(self.i_ptr)
+			operation = self.program_mappings[instruction[0]]
+			operation(instruction)
 
-		if (op_code == Opcodes.ADD or op_code == Opcodes.MULTIPLY):	
-			
-			# Peform Operation
-			if (op_code == Opcodes.ADD): 
-				#print(f'writing: ({memory[posA]} + {memory[posB]}) to pos: {posC}')
-				memory[posC] = int(valA) + int(valB)
-			elif(op_code == Opcodes.MULTIPLY):
-				memory[posC] = int(valA) *  int(valB)
-			
-			# Move ptr to next instruction
-			i_ptr = i_ptr + 4
-		elif (op_code == Opcodes.COPY):
-			memory[posA] = str(input_val)
-			i_ptr = i_ptr + 2
+
+		# Got to end w/o halt
+		print('got to end without halt?')
+		exit(1)
+
+	def add(self, instruction):
+		valA = int(self.get_value(self.i_ptr + 1, instruction[1]))
+		valB = int(self.get_value(self.i_ptr + 2, instruction[2]))
+		posC = int(self.get_value(self.i_ptr + 3, 1))
 		
-		elif (op_code == Opcodes.PRINT):
-			output_val = valA			
-			i_ptr = i_ptr + 2			
-		elif (op_code == Opcodes.JMP_IF_TRUE):
-			if (int(valA) != 0): 
-				i_ptr = int(valB)
-			else:	
-				i_ptr = i_ptr + 3
-		elif (op_code == Opcodes.JMP_IF_FALSE):
-			if (int(valA) == 0): 
-				i_ptr = int(valB)
-			else:	
-				i_ptr = i_ptr + 3
-		elif (op_code == Opcodes.LESS_THAN):
-			if (int(valA) < int(valB)): 
-				memory[posC] = 1
-			else:
-				memory[posC] = 0
-			i_ptr = i_ptr + 4
-		elif (op_code == Opcodes.EQALS):
-			if (int(valA) == int(valB)): 
-				memory[posC] = 1
-			else:
-				memory[posC] = 0
-			i_ptr = i_ptr + 4
+		self.memory[posC] = valA + valB
+		self.i_ptr+=4
+
+	def multiply(self, instruction):
+		valA = int(self.get_value(self.i_ptr + 1, instruction[1]))
+		valB = int(self.get_value(self.i_ptr + 2, instruction[2]))
+		posC = int(self.get_value(self.i_ptr + 3, 1))
+
+		self.memory[posC] = valA * valB
+		self.i_ptr+=4
+
+	def copy(self, instruction):
+		posA = int(self.get_value(self.i_ptr + 1, 1))
+		valA = int(self.get_value(self.i_ptr + 1, instruction[1]))
+		
+		self.memory[posA] = str(self.input)
+		self.i_ptr+=2
+
+	def print(self, instruction):
+		valA = self.get_value(self.i_ptr + 1, instruction[1])
+	
+		self.output = valA
+		self.i_ptr+=2
+
+	def jmp_if_true(self, instruction):
+		valA = int(self.get_value(self.i_ptr + 1, instruction[1]))
+		valB = int(self.get_value(self.i_ptr + 2, instruction[2]))
+
+		if (valA != 0): 
+				self.i_ptr = valB
 		else:
-			print(f'Error - Invalid opcode: {op_code} i_ptr: {i_ptr}')
-			print(memory)
-			exit(1)
+			self.i_ptr+=3		
 
-	return output_val
+	def jmp_if_false(self, instruction):
+		valA = int(self.get_value(self.i_ptr + 1, instruction[1]))
+		valB = int(self.get_value(self.i_ptr + 2, instruction[2]))
+	
+		if (valA == 0): 
+				self.i_ptr = valB
+		else:
+			self.i_ptr+=3
 
+	def less_than(self, instruction):
+		valA = int(self.get_value(self.i_ptr + 1, instruction[1]))
+		valB = int(self.get_value(self.i_ptr + 2, instruction[2]))
+		posC = int(self.get_value(self.i_ptr + 3, 1))
+		
+		if (valA < valB): 
+				memory[posC] = 1
+		else:
+			memory[posC] = 0
+
+		self.i_ptr+=4
+
+	def equals(self, instruction):
+		valA = int(self.get_value(self.i_ptr + 1, instruction[1]))
+		valB = int(self.get_value(self.i_ptr + 2, instruction[2]))
+		posC = int(self.get_value(self.i_ptr + 3, 1))
+
+		if (valA == valB): 
+			self.memory[posC] = 1
+		else:
+			self.memory[posC] = 0
+
+		self.i_ptr+=4
+
+	def end_program(self, instruction):
+		print(f'{self.output}')
+		exit(0)
+
+# ----------------------
+# MAIN PROGRAM
+# ----------------------
+
+
+def load_memory(filename):
+	with open(filename) as f:
+		data = f.read()
+		lines = data.split(',')
+	return lines
+
+# Usage Check
 if len(sys.argv) != 2:
 	print("usage: solve.py input.txt")
 	exit(1)
 
-memory = []
-# Load data into memory
-with open(sys.argv[1]) as f:
-	data = f.read()
-	memory = data.split(",")
+# Map argv inputs into variables
+script, filename = sys.argv
 
-	output = processMemory(memory, 5)
-	print(f'output: {output}')
+# Load and Run
+memory = load_memory(filename)
+prog = IntCode(memory, 5)
+prog.process()
 
 
-print("\ndone.");
 
